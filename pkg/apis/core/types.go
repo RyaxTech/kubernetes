@@ -4213,6 +4213,9 @@ type ContainerImage struct {
 	// The size of the image in bytes.
 	// +optional
 	SizeBytes int64
+	// Map of layers in this image by layer id with size in Bytes
+	// +optional
+	Layers map[string]int64
 }
 
 // NodePhase defines the phase in which a node is in

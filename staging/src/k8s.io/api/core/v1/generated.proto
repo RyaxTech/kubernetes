@@ -794,6 +794,10 @@ message ContainerImage {
   // The size of the image in bytes.
   // +optional
   optional int64 sizeBytes = 2;
+
+  // Map of layers in this image by layer id with size in Bytes
+  // +optional
+  map<string, int64> layers = 3;
 }
 
 // ContainerPort represents a network port in a single container.

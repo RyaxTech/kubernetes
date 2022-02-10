@@ -2927,6 +2927,7 @@ func Convert_core_Container_To_v1_Container(in *core.Container, out *v1.Containe
 func autoConvert_v1_ContainerImage_To_core_ContainerImage(in *v1.ContainerImage, out *core.ContainerImage, s conversion.Scope) error {
 	out.Names = *(*[]string)(unsafe.Pointer(&in.Names))
 	out.SizeBytes = in.SizeBytes
+	out.Layers = *(*map[string]int64)(unsafe.Pointer(&in.Layers))
 	return nil
 }
 
@@ -2938,6 +2939,7 @@ func Convert_v1_ContainerImage_To_core_ContainerImage(in *v1.ContainerImage, out
 func autoConvert_core_ContainerImage_To_v1_ContainerImage(in *core.ContainerImage, out *v1.ContainerImage, s conversion.Scope) error {
 	out.Names = *(*[]string)(unsafe.Pointer(&in.Names))
 	out.SizeBytes = in.SizeBytes
+	out.Layers = *(*map[string]int64)(unsafe.Pointer(&in.Layers))
 	return nil
 }
 

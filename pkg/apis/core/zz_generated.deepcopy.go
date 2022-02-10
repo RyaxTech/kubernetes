@@ -814,6 +814,13 @@ func (in *ContainerImage) DeepCopyInto(out *ContainerImage) {
 		*out = make([]string, len(*in))
 		copy(*out, *in)
 	}
+	if in.Layers != nil {
+		in, out := &in.Layers, &out.Layers
+		*out = make(map[string]int64, len(*in))
+		for key, val := range *in {
+			(*out)[key] = val
+		}
+	}
 	return
 }
 
