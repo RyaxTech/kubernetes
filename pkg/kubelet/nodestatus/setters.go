@@ -21,6 +21,7 @@ import (
 	"math"
 	"net"
 	goruntime "runtime"
+	"strconv"
 	"strings"
 	"time"
 
@@ -470,9 +471,26 @@ func Images(nodeStatusMaxImages int32,
 			if len(names) > MaxNamesPerImageInNodeStatus {
 				names = names[0:MaxNamesPerImageInNodeStatus]
 			}
+
+			// Look for layer size annotation
+			layers := make(map[string]int64)
+			// FIXME find where to put this prefix constant
+			const LAYER_ANNOTATION_PREFIX = "imageLayer."
+			for _, annotation := range image.Spec.Annotations {
+				if strings.HasPrefix(annotation.Name, LAYER_ANNOTATION_PREFIX) {
+					layerID := strings.Split(annotation.Name, LAYER_ANNOTATION_PREFIX)[1]
+					LayerSize, err := strconv.ParseInt(annotation.Value, 10, 64)
+					if err != nil {
+						// Invalid layer size, ignore...
+					} else {
+						layers[layerID] = LayerSize
+					}
+				}
+			}
 			imagesOnNode = append(imagesOnNode, v1.ContainerImage{
 				Names:     names,
 				SizeBytes: image.Size,
+				Layers:    layers,
 			})
 		}
 

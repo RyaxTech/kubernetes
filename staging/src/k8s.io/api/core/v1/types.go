@@ -4882,6 +4882,9 @@ type ContainerImage struct {
 	// The size of the image in bytes.
 	// +optional
 	SizeBytes int64 `json:"sizeBytes,omitempty" protobuf:"varint,2,opt,name=sizeBytes"`
+	// Map of layers in this image by layer id with size in Bytes
+	// +optional
+	Layers map[string]int64 `json:"layers,omitempty" protobuf:"varint,3,opt,name=layers"`
 }
 
 type NodePhase string
