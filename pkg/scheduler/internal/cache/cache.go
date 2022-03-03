@@ -86,13 +86,19 @@ type imageState struct {
 	size int64
 	// A set of node names for nodes having this image present
 	nodes sets.String
+	// Layers already present on each nodes for this image
+	layersOnNodes map[string]sets.String
+	// Size of the layers
+	layerSize map[string]int64
 }
 
 // createImageStateSummary returns a summarizing snapshot of the given image's state.
 func (cache *schedulerCache) createImageStateSummary(state *imageState) *framework.ImageStateSummary {
 	return &framework.ImageStateSummary{
-		Size:     state.size,
-		NumNodes: len(state.nodes),
+		Size:          state.size,
+		NumNodes:      len(state.nodes),
+		LayersOnNodes: state.layersOnNodes,
+		LayersSize:    state.layerSize,
 	}
 }
 
@@ -664,12 +670,22 @@ func (cache *schedulerCache) addNodeImageStates(node *v1.Node, nodeInfo *framewo
 			state, ok := cache.imageStates[name]
 			if !ok {
 				state = &imageState{
-					size:  image.SizeBytes,
-					nodes: sets.NewString(node.Name),
+					size:          image.SizeBytes,
+					nodes:         sets.NewString(node.Name),
+					layerSize:     image.Layers,
+					layersOnNodes: make(map[string]sets.String),
 				}
+				layers := sets.NewString()
+				for layerID := range state.layerSize {
+					layers.Insert(layerID)
+				}
+				state.layersOnNodes[node.Name] = layers
 				cache.imageStates[name] = state
 			} else {
 				state.nodes.Insert(node.Name)
+				for layerID := range state.layerSize {
+					state.layersOnNodes[node.Name].Insert(layerID)
+				}
 			}
 			// create the imageStateSummary for this image
 			if _, ok := newSum[name]; !ok {
