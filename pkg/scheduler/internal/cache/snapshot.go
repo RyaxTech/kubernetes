@@ -86,6 +86,7 @@ func createNodeInfoMap(pods []*v1.Pod, nodes []*v1.Node) map[string]*framework.N
 		nodeNameToInfo[nodeName].AddPod(pod)
 	}
 	imageExistenceMap := createImageExistenceMap(nodes)
+	layersExistenceMap := createLayersExistenceMap(nodes)
 
 	for _, node := range nodes {
 		if _, ok := nodeNameToInfo[node.Name]; !ok {
@@ -93,20 +94,26 @@ func createNodeInfoMap(pods []*v1.Pod, nodes []*v1.Node) map[string]*framework.N
 		}
 		nodeInfo := nodeNameToInfo[node.Name]
 		nodeInfo.SetNode(node)
-		nodeInfo.ImageStates = getNodeImageStates(node, imageExistenceMap)
+		nodeInfo.ImageStates = getNodeImageStates(node, imageExistenceMap, layersExistenceMap)
 	}
 	return nodeNameToInfo
 }
 
 // getNodeImageStates returns the given node's image states based on the given imageExistence map.
-func getNodeImageStates(node *v1.Node, imageExistenceMap map[string]sets.String) map[string]*framework.ImageStateSummary {
+func getNodeImageStates(node *v1.Node, imageExistenceMap map[string]sets.String, layersExistenceMap map[string]sets.String) map[string]*framework.ImageStateSummary {
 	imageStates := make(map[string]*framework.ImageStateSummary)
 
 	for _, image := range node.Status.Images {
 		for _, name := range image.Names {
+			layersOnNodes := make(map[string]sets.String)
+			for layer := range image.Layers {
+				layersOnNodes[layer] = layersExistenceMap[layer]
+			}
 			imageStates[name] = &framework.ImageStateSummary{
-				Size:     image.SizeBytes,
-				NumNodes: len(imageExistenceMap[name]),
+				Size:          image.SizeBytes,
+				NumNodes:      len(imageExistenceMap[name]),
+				LayersOnNodes: layersOnNodes,
+				LayersSize:    image.Layers,
 			}
 		}
 	}
@@ -128,6 +135,22 @@ func createImageExistenceMap(nodes []*v1.Node) map[string]sets.String {
 		}
 	}
 	return imageExistenceMap
+}
+
+func createLayersExistenceMap(nodes []*v1.Node) map[string]sets.String {
+	layersExistenceMap := make(map[string]sets.String)
+	for _, node := range nodes {
+		for _, image := range node.Status.Images {
+			for layer := range image.Layers {
+				if _, ok := layersExistenceMap[layer]; !ok {
+					layersExistenceMap[layer] = sets.NewString(node.Name)
+				} else {
+					layersExistenceMap[layer].Insert(node.Name)
+				}
+			}
+		}
+	}
+	return layersExistenceMap
 }
 
 // NodeInfos returns a NodeInfoLister.

@@ -21,7 +21,7 @@ import (
 	"reflect"
 	"testing"
 
-	"k8s.io/api/core/v1"
+	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/sets"
 	"k8s.io/kubernetes/pkg/scheduler/framework"
@@ -31,9 +31,10 @@ const mb int64 = 1024 * 1024
 
 func TestGetNodeImageStates(t *testing.T) {
 	tests := []struct {
-		node              *v1.Node
-		imageExistenceMap map[string]sets.String
-		expected          map[string]*framework.ImageStateSummary
+		node               *v1.Node
+		imageExistenceMap  map[string]sets.String
+		layersExistenceMap map[string]sets.String
+		expected           map[string]*framework.ImageStateSummary
 	}{
 		{
 			node: &v1.Node{
@@ -45,12 +46,18 @@ func TestGetNodeImageStates(t *testing.T) {
 								"gcr.io/10:v1",
 							},
 							SizeBytes: int64(10 * mb),
+							Layers: map[string]int64{
+								"layer1": int64(10 * mb),
+							},
 						},
 						{
 							Names: []string{
 								"gcr.io/200:v1",
 							},
 							SizeBytes: int64(200 * mb),
+							Layers: map[string]int64{
+								"layer2": int64(200 * mb),
+							},
 						},
 					},
 				},
@@ -59,14 +66,30 @@ func TestGetNodeImageStates(t *testing.T) {
 				"gcr.io/10:v1":  sets.NewString("node-0", "node-1"),
 				"gcr.io/200:v1": sets.NewString("node-0"),
 			},
+			layersExistenceMap: map[string]sets.String{
+				"layer1": sets.NewString("node-1"),
+				"layer2": sets.NewString(),
+			},
 			expected: map[string]*framework.ImageStateSummary{
 				"gcr.io/10:v1": {
 					Size:     int64(10 * mb),
 					NumNodes: 2,
+					LayersOnNodes: map[string]sets.String{
+						"layer1": sets.NewString("node-1"),
+					},
+					LayersSize: map[string]int64{
+						"layer1": int64(10 * mb),
+					},
 				},
 				"gcr.io/200:v1": {
 					Size:     int64(200 * mb),
 					NumNodes: 1,
+					LayersOnNodes: map[string]sets.String{
+						"layer2": sets.NewString(),
+					},
+					LayersSize: map[string]int64{
+						"layer2": int64(200 * mb),
+					},
 				},
 			},
 		},
@@ -79,13 +102,17 @@ func TestGetNodeImageStates(t *testing.T) {
 				"gcr.io/10:v1":  sets.NewString("node-1"),
 				"gcr.io/200:v1": sets.NewString(),
 			},
+			layersExistenceMap: map[string]sets.String{
+				"layer1": sets.NewString("node-1"),
+				"layer2": sets.NewString(),
+			},
 			expected: map[string]*framework.ImageStateSummary{},
 		},
 	}
 
 	for i, test := range tests {
 		t.Run(fmt.Sprintf("case_%d", i), func(t *testing.T) {
-			imageStates := getNodeImageStates(test.node, test.imageExistenceMap)
+			imageStates := getNodeImageStates(test.node, test.imageExistenceMap, test.layersExistenceMap)
 			if !reflect.DeepEqual(test.expected, imageStates) {
 				t.Errorf("expected: %#v, got: %#v", test.expected, imageStates)
 			}

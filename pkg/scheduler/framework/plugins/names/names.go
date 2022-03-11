@@ -20,6 +20,7 @@ const (
 	PrioritySort                    = "PrioritySort"
 	DefaultBinder                   = "DefaultBinder"
 	DefaultPreemption               = "DefaultPreemption"
+	ImageLayersLocality             = "ImageLayersLocality"
 	ImageLocality                   = "ImageLocality"
 	InterPodAffinity                = "InterPodAffinity"
 	NodeAffinity                    = "NodeAffinity"

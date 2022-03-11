@@ -353,8 +353,10 @@ type ImageStateSummary struct {
 	Size int64
 	// Used to track how many nodes have this image
 	NumNodes int
-	// Layers prensence and info for each nodes
-	layersOnNodes map[string]map[string]int64
+	// Layers presence on for each nodes
+	LayersOnNodes map[string]sets.String
+	// Size of the image layers
+	LayersSize map[string]int64
 }
 
 // NodeInfo is node level aggregated information.
