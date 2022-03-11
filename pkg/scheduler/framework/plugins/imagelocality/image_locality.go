@@ -98,7 +98,7 @@ func sumImageScores(nodeInfo *framework.NodeInfo, containers []v1.Container, tot
 	var sum int64
 	for _, container := range containers {
 		if state, ok := nodeInfo.ImageStates[normalizedImageName(container.Image)]; ok {
-			sum += scaledImageScore(state, totalNumNodes, nodeInfo.Node().Name)
+			sum += scaledImageScore(state, totalNumNodes)
 		}
 	}
 	return sum
@@ -108,16 +108,9 @@ func sumImageScores(nodeInfo *framework.NodeInfo, containers []v1.Container, tot
 // The size of the image is used as the base score, scaled by a factor which considers how much nodes the image has "spread" to.
 // This heuristic aims to mitigate the undesirable "node heating problem", i.e., pods get assigned to the same or
 // a few nodes due to image locality.
-func scaledImageScore(imageState *framework.ImageStateSummary, totalNumNodes int, nodeName string) int64 {
+func scaledImageScore(imageState *framework.ImageStateSummary, totalNumNodes int) int64 {
 	spread := float64(imageState.NumNodes) / float64(totalNumNodes)
-	// Compute layers score
-	var sum int64
-	presentLayers := imageState.LayersOnNodes[nodeName]
-	for layer := range presentLayers {
-		sum += imageState.LayersSize[layer]
-	}
-	layerScore := float64(sum / imageState.Size)
-	return int64(float64(imageState.Size) * spread * layerScore)
+	return int64(float64(imageState.Size) * spread)
 }
 
 // normalizedImageName returns the CRI compliant name for a given image.
