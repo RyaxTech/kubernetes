@@ -111,15 +111,6 @@ func getImageLayersAndSize(nodeInfos []*framework.NodeInfo, imageName string) ([
 	return imageLayers, -1
 }
 
-func layerIsOnNode(layer string, imageLayers []string) bool {
-	for _, imageLayer := range imageLayers {
-		if imageLayer == layer {
-			return true
-		}
-	}
-	return false
-}
-
 // normalizedImageName returns the CRI compliant name for a given image.
 // TODO: cover the corner cases of missed matches, e.g,
 // 1. Using Docker as runtime and docker.io/library/test:tag in pod spec, but only test:tag will present in node status
