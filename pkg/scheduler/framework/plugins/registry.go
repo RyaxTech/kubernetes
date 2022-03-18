@@ -24,6 +24,7 @@ import (
 	"k8s.io/kubernetes/pkg/scheduler/framework/plugins/defaultbinder"
 	"k8s.io/kubernetes/pkg/scheduler/framework/plugins/defaultpreemption"
 	plfeature "k8s.io/kubernetes/pkg/scheduler/framework/plugins/feature"
+	"k8s.io/kubernetes/pkg/scheduler/framework/plugins/imagelayerslocality"
 	"k8s.io/kubernetes/pkg/scheduler/framework/plugins/imagelocality"
 	"k8s.io/kubernetes/pkg/scheduler/framework/plugins/interpodaffinity"
 	"k8s.io/kubernetes/pkg/scheduler/framework/plugins/nodeaffinity"
@@ -58,6 +59,7 @@ func NewInTreeRegistry() runtime.Registry {
 
 	return runtime.Registry{
 		selectorspread.Name:      selectorspread.New,
+		imagelayerslocality.Name: imagelayerslocality.New,
 		imagelocality.Name:       imagelocality.New,
 		tainttoleration.Name:     tainttoleration.New,
 		nodename.Name:            nodename.New,

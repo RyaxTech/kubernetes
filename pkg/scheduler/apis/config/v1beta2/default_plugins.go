@@ -81,6 +81,7 @@ func getDefaultPlugins() *v1beta2.Plugins {
 			Enabled: []v1beta2.Plugin{
 				{Name: names.NodeResourcesBalancedAllocation, Weight: pointer.Int32Ptr(1)},
 				{Name: names.ImageLocality, Weight: pointer.Int32Ptr(1)},
+				{Name: names.ImageLayersLocality, Weight: pointer.Int32Ptr(1)},
 				{Name: names.InterPodAffinity, Weight: pointer.Int32Ptr(1)},
 				{Name: names.NodeResourcesFit, Weight: pointer.Int32Ptr(1)},
 				{Name: names.NodeAffinity, Weight: pointer.Int32Ptr(1)},
