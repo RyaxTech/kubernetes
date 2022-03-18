@@ -3537,6 +3537,11 @@ var schemaYAML = typed.YAMLObject(`types:
 - name: io.k8s.api.core.v1.ContainerImage
   map:
     fields:
+    - name: layers
+      type:
+        map:
+          elementType:
+            scalar: numeric
     - name: names
       type:
         list:

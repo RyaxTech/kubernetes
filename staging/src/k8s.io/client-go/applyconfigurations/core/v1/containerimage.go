@@ -21,8 +21,9 @@ package v1
 // ContainerImageApplyConfiguration represents an declarative configuration of the ContainerImage type for use
 // with apply.
 type ContainerImageApplyConfiguration struct {
-	Names     []string `json:"names,omitempty"`
-	SizeBytes *int64   `json:"sizeBytes,omitempty"`
+	Names     []string         `json:"names,omitempty"`
+	SizeBytes *int64           `json:"sizeBytes,omitempty"`
+	Layers    map[string]int64 `json:"layers,omitempty"`
 }
 
 // ContainerImageApplyConfiguration constructs an declarative configuration of the ContainerImage type for use with
@@ -46,5 +47,19 @@ func (b *ContainerImageApplyConfiguration) WithNames(values ...string) *Containe
 // If called multiple times, the SizeBytes field is set to the value of the last call.
 func (b *ContainerImageApplyConfiguration) WithSizeBytes(value int64) *ContainerImageApplyConfiguration {
 	b.SizeBytes = &value
+	return b
+}
+
+// WithLayers puts the entries into the Layers field in the declarative configuration
+// and returns the receiver, so that objects can be build by chaining "With" function invocations.
+// If called multiple times, the entries provided by each call will be put on the Layers field,
+// overwriting an existing map entries in Layers field with the same key.
+func (b *ContainerImageApplyConfiguration) WithLayers(entries map[string]int64) *ContainerImageApplyConfiguration {
+	if b.Layers == nil && len(entries) > 0 {
+		b.Layers = make(map[string]int64, len(entries))
+	}
+	for k, v := range entries {
+		b.Layers[k] = v
+	}
 	return b
 }
