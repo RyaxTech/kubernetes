@@ -38,7 +38,7 @@ func TestImageLocalityPriority(t *testing.T) {
 		},
 	}
 
-	nodeLayers1 := v1.NodeStatus{
+	nodeLayersAllPresent := v1.NodeStatus{
 		Images: []v1.ContainerImage{
 			{
 				Names: []string{
@@ -55,7 +55,58 @@ func TestImageLocalityPriority(t *testing.T) {
 		},
 	}
 
-	nodeLayers2 := v1.NodeStatus{
+	nodeLayersPresentTwoTimes := v1.NodeStatus{
+		Images: []v1.ContainerImage{
+			{
+				Names: []string{
+					"gcr.io/base100:latest",
+				},
+				SizeBytes: int64(100 * mb),
+				Layers: map[string]int64{
+					"layerA": 15 * mb,
+					"layerB": 10 * mb,
+					"layerC": 10 * mb,
+					"layerD": 65 * mb,
+				},
+			},
+			{
+				Names: []string{
+					"gcr.io/base:latest",
+				},
+				SizeBytes: int64(25 * mb),
+				Layers: map[string]int64{
+					"layerA": 15 * mb,
+					"layerB": 10 * mb,
+				},
+			},
+		},
+	}
+	nodeLayersPartlyPresentTwoTimes := v1.NodeStatus{
+		Images: []v1.ContainerImage{
+			{
+				Names: []string{
+					"gcr.io/base50:latest",
+				},
+				SizeBytes: int64(100 * mb),
+				Layers: map[string]int64{
+					"layerA": 15 * mb,
+					"layerB": 10 * mb,
+					"layerE": 25 * mb,
+				},
+			},
+			{
+				Names: []string{
+					"gcr.io/base:latest",
+				},
+				SizeBytes: int64(25 * mb),
+				Layers: map[string]int64{
+					"layerA": 15 * mb,
+					"layerB": 10 * mb,
+				},
+			},
+		},
+	}
+	nodeLayersPartlyPresent := v1.NodeStatus{
 		Images: []v1.ContainerImage{
 			{
 				Names: []string{
@@ -90,8 +141,9 @@ func TestImageLocalityPriority(t *testing.T) {
 		name         string
 	}{
 		{
-			// Pod: gcr.io/base50
-			// Layers:
+
+			// Pod: gcr.io/base100
+			// Layers: A:15MB, B:10MB, C:10MB, D:65MB
 
 			// Node1
 			// Image: gcr.io/base100:latest 100MB
@@ -106,7 +158,29 @@ func TestImageLocalityPriority(t *testing.T) {
 			// Node3
 			// Score: 0
 			pod:          &v1.Pod{Spec: testLayers},
-			nodes:        []*v1.Node{makeImageNode("machine1", nodeLayers1), makeImageNode("machine2", nodeLayers2), makeImageNode("machine3", nodeWithNoImages)},
+			nodes:        []*v1.Node{makeImageNode("machine1", nodeLayersAllPresent), makeImageNode("machine2", nodeLayersPartlyPresent), makeImageNode("machine3", nodeWithNoImages)},
+			expectedList: []framework.NodeScore{{Name: "machine1", Score: 100}, {Name: "machine2", Score: 25}, {Name: "machine3", Score: 0}},
+			name:         "pod with multiple small images",
+		},
+		{
+
+			// Pod: gcr.io/base100
+			// Layers: A:15MB, B:10MB, C:10MB, D:65MB
+
+			// Node1
+			// Image: gcr.io/base100:latest 100MB, gcr.io/base:latest 25MB
+			// Layers: A:15MB (in both), B:10MB (in both), C:10M D:65M
+			// Score: 100 * (15MB + 10MB + 10MB + 65MB) / 100MB = 100
+
+			// Node2
+			// Image: gcr.io/base:latest 25MB, gcr.io/base50:latest 50MB
+			// Layers: A:15MB (in both), B:10MB (in both)...
+			// Score: 100 * (15MB + 10MB) / 100MB = 25
+
+			// Node3
+			// Score: 0
+			pod:          &v1.Pod{Spec: testLayers},
+			nodes:        []*v1.Node{makeImageNode("machine1", nodeLayersPresentTwoTimes), makeImageNode("machine2", nodeLayersPartlyPresentTwoTimes), makeImageNode("machine3", nodeWithNoImages)},
 			expectedList: []framework.NodeScore{{Name: "machine1", Score: 100}, {Name: "machine2", Score: 25}, {Name: "machine3", Score: 0}},
 			name:         "pod with multiple small images",
 		},

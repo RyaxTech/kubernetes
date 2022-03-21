@@ -675,21 +675,20 @@ func (cache *schedulerCache) addNodeImageStates(node *v1.Node, nodeInfo *framewo
 					layerSize:     image.Layers,
 					layersOnNodes: make(map[string]sets.String),
 				}
-				layers := sets.NewString()
 				for layerID := range state.layerSize {
-					layers.Insert(layerID)
+					state.layersOnNodes[layerID] = sets.NewString()
+					state.layersOnNodes[layerID].Insert(node.Name)
 				}
-				state.layersOnNodes[node.Name] = layers
 				cache.imageStates[name] = state
 			} else {
 				state.nodes.Insert(node.Name)
-				layers, ok := state.layersOnNodes[node.Name]
-				if !ok {
-					layers = sets.NewString()
-					state.layersOnNodes[node.Name] = layers
-				}
 				for layerID := range state.layerSize {
-					layers.Insert(layerID)
+					layers, ok := state.layersOnNodes[layerID]
+					if !ok {
+						layers = sets.NewString()
+						layers.Insert(node.Name)
+					}
+					layers.Insert(node.Name)
 				}
 			}
 			// create the imageStateSummary for this image

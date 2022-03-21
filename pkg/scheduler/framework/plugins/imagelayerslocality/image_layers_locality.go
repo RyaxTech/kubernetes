@@ -23,6 +23,7 @@ import (
 
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/klog/v2"
 	"k8s.io/kubernetes/pkg/scheduler/framework"
 	"k8s.io/kubernetes/pkg/scheduler/framework/plugins/names"
 )
@@ -53,10 +54,17 @@ func (pl *ImageLayersLocality) Score(ctx context.Context, state *framework.Cycle
 	if err != nil {
 		return 0, framework.AsStatus(err)
 	}
+	if klog.V(10).Enabled() {
+		for _, node := range nodeInfos {
+			for imageName, image := range node.ImageStates {
+				klog.InfoS("ImageLayersPlugin debug info", "node", node.Node().Name, "image", imageName, "container-image", pod.Spec.Containers[0].Image, "nodeImageStatus", image)
+			}
+		}
+	}
 
 	score := sumImageScores(nodeInfo, pod.Spec.Containers, nodeInfos)
 
-	return int64(score * 100), nil
+	return int64(score * 100), framework.NewStatus(framework.Success, "Score computed successfully")
 }
 
 // ScoreExtensions of the Score plugin.
@@ -69,46 +77,70 @@ func New(_ runtime.Object, h framework.Handle) (framework.Plugin, error) {
 	return &ImageLayersLocality{handle: h}, nil
 }
 
-// sumImageScores returns the sum of image scores of all the containers that are already on the node.
-// Each image receives a raw score of its size, scaled by scaledImageScore. Note
-// that the init containers are not considered for it's rare for users to deploy
+// Returns the sum of image scores of all the containers that are already on the node.
+// Each image receives a score for sum of the size of each layer presnet on the node, nomalized by the total image size.
+// Note that the init containers are not considered for it's rare for users to deploy
 // huge init containers.
 func sumImageScores(nodeInfo *framework.NodeInfo, containers []v1.Container, nodeInfos []*framework.NodeInfo) float64 {
-	var sum float64
+	var layerScores float64 = 0
 	for _, container := range containers {
+		var sum int64 = 0
 		imageName := normalizedImageName(container.Image)
 		imageLayers, imageSize := getImageLayersAndSize(nodeInfos, imageName)
+		presentLayers := make(map[string]int64)
+
+		if klog.V(10).Enabled() {
+			klog.InfoS("ImageLayersPlugin debug info", "imageNormalized", imageName, "imageLayers", imageLayers, "imageSize", imageSize)
+		}
 		for _, state := range nodeInfo.ImageStates {
-			sum += scaledImageScore(state, nodeInfo.Node().Name, imageLayers, imageSize)
+			getPresentLayers(state, nodeInfo.Node().Name, imageLayers, imageSize, presentLayers)
+		}
+		for _, size := range presentLayers {
+			sum += size
+		}
+		if klog.V(10).Enabled() {
+			klog.InfoS("ImageLayersPlugin LAYERS", "presentLayers", presentLayers, "sumLayers", sum, "imageSize", imageSize, "node", nodeInfo.Node().Name, "image", imageName)
+		}
+		layerScore := float64(sum) / float64(imageSize)
+		// Avoid score higher than expected when common layers then the sum of the layers
+		if layerScore > 1 {
+			layerScore = 1
+		}
+		layerScores += layerScore
+		if klog.V(10).Enabled() {
+			klog.InfoS("ImageLayersPlugin", "SCORE", layerScore, "node", nodeInfo.Node().Name, "image", imageName)
 		}
 	}
-	return sum / float64(len(containers))
+	return layerScores / float64(len(containers))
 }
 
-// scaledImageScore returns a score for the given state of an image regarding the layers present on the node.
-func scaledImageScore(imageState *framework.ImageStateSummary, nodeName string, imageLayers []string, imageSize int64) float64 {
+// getPresentLayers fills the presentLayers map for one image regarding the layers present on the node.
+func getPresentLayers(imageState *framework.ImageStateSummary, nodeName string, imageLayers []string, imageSize int64, presentLayers map[string]int64) {
 	// Compute layers score
-	var sum int64
+	var sum int64 = 0
 	for _, layer := range imageLayers {
 		if imageState.LayersOnNodes[layer].Has(nodeName) {
-			sum += imageState.LayersSize[layer]
+			presentLayers[layer] = imageState.LayersSize[layer]
+			if klog.V(10).Enabled() {
+				klog.InfoS("ImageLayersPlugin LAYER FOUND!", "layer", layer, "sum", sum, "node", nodeName)
+			}
 		}
 	}
-	layerScore := float64(sum) / float64(imageSize)
-	return layerScore
 }
 
 func getImageLayersAndSize(nodeInfos []*framework.NodeInfo, imageName string) ([]string, int64) {
 	imageLayers := make([]string, 0)
+	var totalSize int64 = 0
 	for _, node := range nodeInfos {
 		if image, ok := node.ImageStates[imageName]; ok {
-			for layer := range image.LayersSize {
+			for layer, size := range image.LayersSize {
 				imageLayers = append(imageLayers, layer)
+				totalSize += size
 			}
-			return imageLayers, image.Size
+			return imageLayers, totalSize
 		}
 	}
-	return imageLayers, -1
+	return imageLayers, 1
 }
 
 // normalizedImageName returns the CRI compliant name for a given image.
